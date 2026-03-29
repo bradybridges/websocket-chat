@@ -12,8 +12,57 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
-function prompt(question) {
-  return new Promise((resolve) => rl.question(question, resolve));
+function prompt(question, { password = false } = {}) {
+  if (!password) {
+    return new Promise((resolve) => rl.question(question, resolve));
+  }
+
+  return new Promise((resolve) => {
+    process.stdout.write(question);
+
+    let input = '';
+
+    // Disable readline's TTY input handler and echo so it neither processes
+    // nor displays characters while we capture them directly via raw mode.
+    const originalTtyWrite = rl._ttyWrite.bind(rl);
+    rl._ttyWrite = () => {};
+    rl._writeToOutput = () => {};
+
+    process.stdin.setRawMode(true);
+
+    const restoreReadline = () => {
+      process.stdin.setRawMode(false);
+      process.stdin.removeListener('data', onData);
+      rl._ttyWrite = originalTtyWrite;
+      // rl._writeToOutput = (str) => rl.output.write(str);
+    };
+
+    const onData = (data) => {
+      const char = data.toString('utf8');
+      switch (char) {
+        case '\r':
+        case '\n':
+          restoreReadline();
+          process.stdout.write('\n');
+          resolve(input);
+          break;
+        case '\u0003': // Ctrl+C
+          restoreReadline();
+          process.stdout.write('\n');
+          process.exit(0);
+          break;
+        case '\u007f': // Backspace (DEL)
+        case '\b':     // Backspace (BS)
+          if (input.length > 0) input = input.slice(0, -1);
+          break;
+        default:
+          if (char >= ' ') input += char;
+      }
+
+    };
+
+    process.stdin.on('data', onData);
+  });
 }
 
 async function main() {
@@ -181,7 +230,7 @@ async function main() {
           return;
         }
         const [roomName] = cmdArgs;
-        const password = (await prompt('Room password: ')).trim();
+        const password = (await prompt('Room password: ', { password: true })).trim();
         if (!password) {
           console.log('[error] Password cannot be empty');
           return;
@@ -198,17 +247,17 @@ async function main() {
           return;
         }
         const [roomName] = cmdArgs;
-        const roomPassword = (await prompt('Room password: ')).trim();
+        const roomPassword = (await prompt('Room password: ', { password: true })).trim();
         if (!roomPassword) {
           console.log('[error] Room password cannot be empty');
           return;
         }
-        const roomPasswordConfirm = (await prompt('Confirm room password: ')).trim();
+        const roomPasswordConfirm = (await prompt('Confirm room password: ', { password: true })).trim();
         if (roomPassword !== roomPasswordConfirm) {
           console.log('[error] Passwords do not match');
           return;
         }
-        const adminPassword = (await prompt('Admin password: ')).trim();
+        const adminPassword = (await prompt('Admin password: ', { password: true })).trim();
         if (!adminPassword) {
           console.log('[error] Admin password cannot be empty');
           return;
@@ -220,7 +269,7 @@ async function main() {
       }
 
       case '/rooms': {
-        const adminPassword = (await prompt('Admin password: ')).trim();
+        const adminPassword = (await prompt('Admin password: ', { password: true })).trim();
         if (!adminPassword) {
           console.log('[error] Admin password cannot be empty');
           return;
@@ -236,7 +285,7 @@ async function main() {
           return;
         }
         const [roomName] = cmdArgs;
-        const adminPassword = (await prompt('Admin password: ')).trim();
+        const adminPassword = (await prompt('Admin password: ', { password: true })).trim();
         if (!adminPassword) {
           console.log('[error] Admin password cannot be empty');
           return;
