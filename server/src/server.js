@@ -13,7 +13,9 @@ if (!ADMIN_PASSWORD_HASH) {
 // Global username registry to enforce uniqueness across all rooms
 const activeUsernames = new Set();
 
-// rooms: Map<roomName, { passwordHash: string, clients: Map<username, ws> }>
+const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
+
+// rooms: Map<roomName, { passwordHash: string, clients: Map<username, ws>, messages: Array }>
 const rooms = new Map();
 
 const server = http.createServer();
@@ -106,6 +108,11 @@ wss.on('connection', (ws, req) => {
       room.clients.set(username, ws);
 
       send(ws, { type: 'joined', roomName });
+
+      if (room.messages.length > 0) {
+        send(ws, { type: 'history', messages: room.messages });
+      }
+
       broadcastToRoom(roomName, {
         type: 'system',
         text: `${username} joined the room`,
@@ -134,7 +141,7 @@ wss.on('connection', (ws, req) => {
         return;
       }
 
-      rooms.set(roomName, { passwordHash: roomPasswordHash, clients: new Map() });
+      rooms.set(roomName, { passwordHash: roomPasswordHash, clients: new Map(), messages: [] });
       console.log(`[*] Room "${roomName}" created by ${username}`);
       send(ws, { type: 'room_created', roomName });
       return;
@@ -201,12 +208,15 @@ wss.on('connection', (ws, req) => {
 
       if (!msg.text?.trim()) return;
 
-      broadcastToRoom(currentRoom, {
-        type: 'chat',
-        username,
-        text: msg.text,
-        timestamp: new Date().toISOString(),
-      });
+      const room = rooms.get(currentRoom);
+      const timestamp = new Date().toISOString();
+
+      room.messages.push({ username, text: msg.text, timestamp });
+
+      const cutoff = Date.now() - FOUR_HOURS_MS;
+      room.messages = room.messages.filter(m => new Date(m.timestamp).getTime() > cutoff);
+
+      broadcastToRoom(currentRoom, { type: 'chat', username, text: msg.text, timestamp });
       return;
     }
   });

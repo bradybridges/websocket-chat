@@ -59,6 +59,21 @@ async function main() {
         console.log(`\n[${time}] *** Room "${msg.roomName}" created successfully ***\n`);
         break;
 
+      case 'history': {
+        console.log('--- Message History ---');
+        for (const m of msg.messages) {
+          const msgTime = new Date(m.timestamp).toLocaleTimeString();
+          try {
+            const plaintext = decrypt(encryptionKey, m.text);
+            console.log(`[${msgTime}] ${m.username}: ${plaintext}`);
+          } catch {
+            console.log(`[${msgTime}] ${m.username}: [unable to decrypt message]`);
+          }
+        }
+        console.log('--- End of History ---\n');
+        break;
+      }
+
       case 'system':
         console.log(`[${new Date(msg.timestamp).toLocaleTimeString()}] *** ${msg.text} ***`);
         break;
