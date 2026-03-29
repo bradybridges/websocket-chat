@@ -121,6 +121,12 @@ async function main() {
         }
         break;
 
+      case 'online_list':
+        console.log(`\nOnline in "${currentRoom}" (${msg.users.length}):`);
+        msg.users.forEach((u) => console.log(`  • ${u}`));
+        console.log();
+        break;
+
       case 'left':
         currentRoom = null;
         encryptionKey = null;
@@ -225,6 +231,14 @@ async function main() {
         break;
       }
 
+      case '/online':
+        if (!currentRoom) {
+          console.log('[error] You must be in a room to use /online');
+          return;
+        }
+        ws.send(JSON.stringify({ type: 'online' }));
+        break;
+
       case '/leave':
         if (!currentRoom) {
           console.log('[error] You are not in a room');
@@ -242,9 +256,10 @@ async function main() {
 
       case '/help':
         console.log('\nAvailable commands:');
-        console.log('  /join <roomName> <password>    Join a room');
+        console.log('  /join <roomName>               Join a room');
         console.log('  /leave                         Leave the current room');
         console.log('  /create <roomName> <password>  Create a room (admin only)');
+        console.log('  /online                        List users in the current room');
         console.log('  /delete <roomName>             Delete a room (admin only)');
         console.log('  /rooms                         List all active rooms (admin only)');
         console.log('  /logout                        Leave the chat and exit');

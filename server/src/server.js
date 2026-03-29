@@ -200,6 +200,18 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
+    if (msg.type === 'online') {
+      if (!currentRoom) {
+        send(ws, { type: 'error', text: 'You are not in a room' });
+        return;
+      }
+
+      const room = rooms.get(currentRoom);
+      const users = room ? Array.from(room.clients.keys()) : [];
+      send(ws, { type: 'online_list', users });
+      return;
+    }
+
     if (msg.type === 'leave') {
       if (!currentRoom) {
         send(ws, { type: 'error', text: 'You are not in a room' });
