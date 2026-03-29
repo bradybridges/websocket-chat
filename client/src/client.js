@@ -121,6 +121,12 @@ async function main() {
         }
         break;
 
+      case 'left':
+        currentRoom = null;
+        encryptionKey = null;
+        console.log(`\n[${time}] *** You have left "${msg.roomName}" ***\n`);
+        break;
+
       case 'error':
         pendingJoin = null;
         console.log(`\n[error] ${msg.text}\n`);
@@ -219,6 +225,14 @@ async function main() {
         break;
       }
 
+      case '/leave':
+        if (!currentRoom) {
+          console.log('[error] You are not in a room');
+          return;
+        }
+        ws.send(JSON.stringify({ type: 'leave' }));
+        break;
+
       case '/logout':
         console.log('Logging out...');
         ws.close();
@@ -229,6 +243,7 @@ async function main() {
       case '/help':
         console.log('\nAvailable commands:');
         console.log('  /join <roomName> <password>    Join a room');
+        console.log('  /leave                         Leave the current room');
         console.log('  /create <roomName> <password>  Create a room (admin only)');
         console.log('  /delete <roomName>             Delete a room (admin only)');
         console.log('  /rooms                         List all active rooms (admin only)');

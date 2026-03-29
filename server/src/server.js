@@ -200,6 +200,28 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
+    if (msg.type === 'leave') {
+      if (!currentRoom) {
+        send(ws, { type: 'error', text: 'You are not in a room' });
+        return;
+      }
+
+      const room = rooms.get(currentRoom);
+      if (room) {
+        room.clients.delete(username);
+        broadcastToRoom(currentRoom, {
+          type: 'system',
+          text: `${username} left the room`,
+          timestamp: new Date().toISOString(),
+        });
+      }
+
+      console.log(`[<] ${username} left room "${currentRoom}"`);
+      send(ws, { type: 'left', roomName: currentRoom });
+      currentRoom = null;
+      return;
+    }
+
     if (msg.type === 'chat') {
       if (!currentRoom) {
         send(ws, { type: 'error', text: 'You must join a room before sending messages. Use /join <room> <password>' });
