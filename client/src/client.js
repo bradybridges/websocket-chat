@@ -165,7 +165,7 @@ async function main() {
 
     if (!input.startsWith('/')) {
       if (!currentRoom) {
-        console.log('[error] You must join a room first. Use /join <roomName> <password>');
+        console.log('[error] You must join a room first. Use /join <roomName>');
         return;
       }
       ws.send(JSON.stringify({ type: 'chat', text: encrypt(encryptionKey, input) }));
@@ -176,11 +176,16 @@ async function main() {
 
     switch (command) {
       case '/join': {
-        if (cmdArgs.length < 2) {
-          console.log('Usage: /join <roomName> <password>');
+        if (cmdArgs.length < 1) {
+          console.log('Usage: /join <roomName>');
           return;
         }
-        const [roomName, password] = cmdArgs;
+        const [roomName] = cmdArgs;
+        const password = (await prompt('Room password: ')).trim();
+        if (!password) {
+          console.log('[error] Password cannot be empty');
+          return;
+        }
         const passwordHash = crypto.createHash('sha256').update(password).digest('hex');
         pendingJoin = { roomName, key: deriveKey(password) };
         ws.send(JSON.stringify({ type: 'join', roomName, passwordHash }));
@@ -188,11 +193,21 @@ async function main() {
       }
 
       case '/create': {
-        if (cmdArgs.length < 2) {
-          console.log('Usage: /create <roomName> <roomPassword>');
+        if (cmdArgs.length < 1) {
+          console.log('Usage: /create <roomName>');
           return;
         }
-        const [roomName, roomPassword] = cmdArgs;
+        const [roomName] = cmdArgs;
+        const roomPassword = (await prompt('Room password: ')).trim();
+        if (!roomPassword) {
+          console.log('[error] Room password cannot be empty');
+          return;
+        }
+        const roomPasswordConfirm = (await prompt('Confirm room password: ')).trim();
+        if (roomPassword !== roomPasswordConfirm) {
+          console.log('[error] Passwords do not match');
+          return;
+        }
         const adminPassword = (await prompt('Admin password: ')).trim();
         if (!adminPassword) {
           console.log('[error] Admin password cannot be empty');
@@ -258,8 +273,8 @@ async function main() {
         console.log('\nAvailable commands:');
         console.log('  /join <roomName>               Join a room');
         console.log('  /leave                         Leave the current room');
-        console.log('  /create <roomName> <password>  Create a room (admin only)');
         console.log('  /online                        List users in the current room');
+        console.log('  /create <roomName>             Create a room (admin only)');
         console.log('  /delete <roomName>             Delete a room (admin only)');
         console.log('  /rooms                         List all active rooms (admin only)');
         console.log('  /logout                        Leave the chat and exit');
