@@ -60,7 +60,7 @@ wss.on("connection", (ws, req) => {
 	console.log(`[+] ${username} connected`);
 	send(ws, {
 		type: "connected",
-		text: `Welcome, ${username}. Use /join <room> <password> to join a room.`,
+		text: `Welcome, ${username}. Use /join <room> to join a room.`,
 	});
 
 	ws.on("message", (data) => {
@@ -84,16 +84,11 @@ wss.on("connection", (ws, req) => {
 			}
 
 			const room = rooms.get(roomName);
-			if (!room) {
+			if (!room || passwordHash !== room.passwordHash) {
 				send(ws, {
 					type: "error",
-					text: `Room "${roomName}" does not exist`,
+					text: `Unable to join room`,
 				});
-				return;
-			}
-
-			if (passwordHash !== room.passwordHash) {
-				send(ws, { type: "error", text: "Invalid room password" });
 				return;
 			}
 
@@ -264,7 +259,7 @@ wss.on("connection", (ws, req) => {
 			if (!currentRoom) {
 				send(ws, {
 					type: "error",
-					text: "You must join a room before sending messages. Use /join <room> <password>",
+					text: "You must join a room before sending messages. Use /join <room>",
 				});
 				return;
 			}
