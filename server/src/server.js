@@ -18,7 +18,17 @@ const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 // rooms: Map<roomName, { passwordHash: string, clients: Map<username, ws>, messages: Array }>
 const rooms = new Map();
 
-const server = http.createServer();
+
+// Endpoint to verify server is up for external health checks
+const server = http.createServer((req, res) => {
+	if (req.url === "/health") {
+		res.writeHead(200);
+		res.end("ok");
+	} else {
+		res.writeHead(404);
+		res.end();
+	}
+});
 const wss = new WebSocketServer({ server });
 
 function send(ws, message) {
