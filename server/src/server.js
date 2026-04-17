@@ -1,5 +1,6 @@
 const { WebSocketServer } = require("ws");
 const http = require("http");
+const crypto = require("crypto");
 const { parse } = require("url");
 
 const PORT = process.env.PORT || 8080;
@@ -18,6 +19,16 @@ const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 // rooms: Map<roomName, { passwordHash: string, clients: Map<username, ws>, messages: Array }>
 const rooms = new Map();
 
+// Check hashes with contant time algorith to prevent timing info leaks
+function hashesEqual(a, b) {
+	try {
+		const bufA = Buffer.from(a, "hex");
+		const bufB = Buffer.from(b, "hex");
+		return bufA.length === bufB.length && crypto.timingSafeEqual(bufA, bufB);
+	} catch {
+		return false;
+	}
+}
 
 // Endpoint to verify server is up for external health checks
 const server = http.createServer((req, res) => {
@@ -29,6 +40,7 @@ const server = http.createServer((req, res) => {
 		res.end();
 	}
 });
+
 const wss = new WebSocketServer({ server });
 
 function send(ws, message) {
@@ -112,10 +124,10 @@ wss.on("connection", (ws, req) => {
 			}
 
 			const room = rooms.get(roomName);
-			if (!room || passwordHash !== room.passwordHash) {
+			if (!room || !hashesEqual(passwordHash, room.passwordHash)) {
 				send(ws, {
 					type: "error",
-					text: `Unable to join room`,
+					text: "Unable to join room",
 				});
 				return;
 			}
@@ -170,7 +182,7 @@ wss.on("connection", (ws, req) => {
 				return;
 			}
 
-			if (adminPasswordHash !== ADMIN_PASSWORD_HASH) {
+			if (!hashesEqual(adminPasswordHash, ADMIN_PASSWORD_HASH)) {
 				send(ws, { type: "error", text: "Invalid admin password" });
 				return;
 			}
@@ -201,7 +213,7 @@ wss.on("connection", (ws, req) => {
 				return;
 			}
 
-			if (adminPasswordHash !== ADMIN_PASSWORD_HASH) {
+			if (!hashesEqual(adminPasswordHash, ADMIN_PASSWORD_HASH)) {
 				send(ws, { type: "error", text: "Invalid admin password" });
 				return;
 			}
@@ -233,7 +245,7 @@ wss.on("connection", (ws, req) => {
 				return;
 			}
 
-			if (adminPasswordHash !== ADMIN_PASSWORD_HASH) {
+			if (!hashesEqual(adminPasswordHash, ADMIN_PASSWORD_HASH)) {
 				send(ws, { type: "error", text: "Invalid admin password" });
 				return;
 			}
@@ -354,6 +366,31 @@ wss.on("connection", (ws, req) => {
 		console.error(`Error from ${username}:`, err.message);
 	});
 });
+
+function gracefulShutdown(signal) {
+	console.log(`Received ${signal}, shutting down...`);
+	for (const [, room] of rooms) {
+		for (const [, ws] of room.clients) {
+			try {
+				send(ws, {
+					type: "system",
+					text: "Server is shutting down",
+					timestamp: new Date().toISOString(),
+				});
+				ws.close(1001, "Server shutting down");
+			} catch {}
+		}
+	}
+	wss.close(() => {
+		server.close(() => {
+			console.log("Server stopped");
+			process.exit(0);
+		});
+	});
+}
+
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 
 server.listen(PORT, () => {
 	console.log(`WebSocket chat server running on port ${PORT}`);
