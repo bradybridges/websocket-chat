@@ -81,7 +81,9 @@ async function main() {
 		process.exit(1);
 	}
 
-	const url = `ws://${host}?username=${encodeURIComponent(username)}`;
+	const isLocal = host.startsWith("localhost") || host.startsWith("127.");
+	const protocol = isLocal ? "ws" : "wss";
+	const url = `${protocol}://${host}?username=${encodeURIComponent(username)}`;
 	const ws = new WebSocket(url);
 
 	let encryptionKey = null;
