@@ -63,9 +63,13 @@ ws-chat [host]
 ## Connecting
 
 ```bash
-ws-chat                    # connect to localhost:8080
-ws-chat example.com:8080   # connect to a remote server
+ws-chat                        # connect to localhost:8080 (ws://)
+ws-chat example.com            # connect to a remote server (wss://)
+ws-chat example.com:9000       # connect to a remote server on a non-default port (wss://)
+ws-chat localhost:9000         # connect to a local server on a non-default port (ws://)
 ```
+
+Pass only the hostname or `host:port` — no protocol prefix. Remote connections automatically use `wss://`; local connections use `ws://`.
 
 On launch you will be prompted for a username, then connected to the server. Use `/help` to see available commands.
 
