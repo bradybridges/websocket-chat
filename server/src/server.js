@@ -58,6 +58,12 @@ wss.on("connection", (ws, req) => {
 		return;
 	}
 
+	if (username.length > 32) {
+		send(ws, { type: "error", text: "Username must be 32 characters or fewer" });
+		ws.close(4003, "Username too long");
+		return;
+	}
+
 	if (activeUsernames.has(username)) {
 		send(ws, { type: "error", text: "Username already taken" });
 		ws.close(4002, "Username already taken");
@@ -74,6 +80,13 @@ wss.on("connection", (ws, req) => {
 	});
 
 	ws.on("message", (data) => {
+		// 4 KB ceiling — well above the 1,000 character message limit but
+		// tight enough to reject oversized or malformed frames before parsing.
+		if (data.length > 4096) {
+			send(ws, { type: "error", text: "Message too large" });
+			return;
+		}
+
 		let msg;
 		try {
 			msg = JSON.parse(data.toString());
@@ -90,6 +103,11 @@ wss.on("connection", (ws, req) => {
 					type: "error",
 					text: "Room name and password are required",
 				});
+				return;
+			}
+
+			if (roomName.length > 64) {
+				send(ws, { type: "error", text: "Room name too long" });
 				return;
 			}
 
@@ -144,6 +162,11 @@ wss.on("connection", (ws, req) => {
 					type: "error",
 					text: "Room name, room password, and admin password are required",
 				});
+				return;
+			}
+
+			if (roomName.length > 64) {
+				send(ws, { type: "error", text: "Room name too long" });
 				return;
 			}
 
@@ -202,6 +225,11 @@ wss.on("connection", (ws, req) => {
 					type: "error",
 					text: "Room name and admin password are required",
 				});
+				return;
+			}
+
+			if (roomName.length > 64) {
+				send(ws, { type: "error", text: "Room name too long" });
 				return;
 			}
 
@@ -275,6 +303,12 @@ wss.on("connection", (ws, req) => {
 			}
 
 			if (!msg.text?.trim()) return;
+
+			// 1,000 character limit — keeps messages concise and bounds memory usage.
+			if (msg.text.length > 1000) {
+				send(ws, { type: "error", text: "Message too long (max 1,000 characters)" });
+				return;
+			}
 
 			const room = rooms.get(currentRoom);
 			const timestamp = new Date().toISOString();
