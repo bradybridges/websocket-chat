@@ -34,7 +34,6 @@ function prompt(question, { password = false } = {}) {
 			process.stdin.setRawMode(false);
 			process.stdin.removeListener("data", onData);
 			rl._ttyWrite = originalTtyWrite;
-			// rl._writeToOutput = (str) => rl.output.write(str);
 		};
 
 		const onData = (data) => {
